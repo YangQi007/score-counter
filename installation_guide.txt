@@ -1,0 +1,92 @@
+Baccarat Scoreboard App - Installation Guide
+=========================================
+
+This guide provides step-by-step instructions for installing the Baccarat Scoreboard app on both iPhone Simulator and physical iPhone devices.
+
+FOR IPHONE SIMULATOR
+-------------------
+1. Open Terminal on your Mac
+
+2. Navigate to the project folder:
+   cd /Users/yangqi/Desktop/score-counter
+
+3. Install dependencies (if not already done):
+   npm install
+
+4. Start the development server:
+   npx expo start
+
+5. Press 'i' in the terminal to open in iOS Simulator
+   - This will automatically open Xcode Simulator
+   - The app will be installed and launched automatically
+
+
+FOR PHYSICAL IPHONE DEVICE
+-------------------------
+1. Prerequisites:
+   - Make sure you have Xcode installed on your Mac
+   - Have an Apple Developer account (free or paid)
+   - Your iPhone should be running iOS 13.0 or later
+
+2. Open Terminal and navigate to project:
+   cd /Users/yangqi/Desktop/score-counter
+
+3. Install dependencies (if not already done):
+   npm install
+
+4. Create iOS build files:
+   npx expo prebuild -p ios
+
+5. Open the iOS project in Xcode:
+   - Navigate to the 'ios' folder in your project
+   - Double-click the '.xcworkspace' file (NOT the '.xcodeproj' file)
+
+6. In Xcode:
+   - Click on the project name in the left sidebar
+   - Select your project under TARGETS
+   - Under "Signing & Capabilities":
+     - Select your Team (Apple ID)
+     - The Bundle Identifier should be "com.qiyang2017.baccaratapp"
+
+7. Connect your iPhone:
+   - Connect your iPhone to your Mac using a USB cable
+   - Trust the computer on your iPhone if prompted
+   - In Xcode, select your iPhone from the device dropdown menu at the top
+
+8. Build and Run:
+   - Click the Play (▶) button in Xcode
+   - Or use Command (⌘) + R
+
+9. On your iPhone:
+   - Go to Settings > General > Device Management
+   - Trust the developer profile (your Apple ID)
+   - The app should now work
+
+
+TROUBLESHOOTING COMMON ISSUES
+----------------------------
+1. If you see "Untrusted Developer" on iPhone:
+   - Go to Settings > General > Device Management
+   - Tap your Apple ID
+   - Tap "Trust"
+
+2. If build fails:
+   - Clean the build folder in Xcode (Shift + Command + K)
+   - Try building again
+
+3. If app doesn't install:
+   - Delete the app from your device
+   - Restart your iPhone
+   - Try installing again
+
+
+IMPORTANT NOTES
+--------------
+- Using a free Apple Developer account:
+  * The app will remain installed for 7 days
+  * After 7 days, you'll need to reinstall it
+
+- Using a paid Apple Developer account:
+  * The app will remain installed for 1 year
+
+For any additional help or issues, please contact the development team. 
