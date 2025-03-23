@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, Text } from 'react-native';
 import { SymbolType } from '../types/types';
 
@@ -7,9 +7,54 @@ interface ScoreboardProps {
   type: 'main' | 'search' | 'history';
   onPress?: () => void;
   isActive?: boolean;
+  matchedPositions?: { startRow: number; startCol: number }[];
+  searchPattern?: SymbolType[][];
 }
 
-const Scoreboard: React.FC<ScoreboardProps> = ({ data, type, onPress }) => {
+const Scoreboard: React.FC<ScoreboardProps> = ({ 
+  data, 
+  type, 
+  onPress,
+  matchedPositions = [],
+  searchPattern = []
+}) => {
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (matchedPositions && matchedPositions.length > 0 && scrollViewRef.current) {
+      // Get the first match position
+      const firstMatch = matchedPositions[0];
+      // Calculate scroll position to center the match
+      // Each cell is 30px wide, we want to center the pattern
+      const patternWidth = searchPattern[0]?.length || 1;
+      const scrollToX = Math.max(0, (firstMatch.startCol * 30) - 100); // 100px offset from left
+      
+      // Scroll to position with animation
+      scrollViewRef.current.scrollTo({ x: scrollToX, animated: true });
+    }
+  }, [matchedPositions, searchPattern]);
+
+  const isPositionHighlighted = (rowIndex: number, colIndex: number): boolean => {
+    if (!matchedPositions || !searchPattern) return false;
+
+    return matchedPositions.some(pos => {
+      const searchRows = searchPattern.length;
+      const searchCols = searchPattern[0]?.length || 0;
+      
+      // Check if current position is within a matched pattern area
+      if (rowIndex >= pos.startRow && 
+          rowIndex < pos.startRow + searchRows && 
+          colIndex >= pos.startCol && 
+          colIndex < pos.startCol + searchCols) {
+        // Only highlight if the corresponding position in search pattern is not null
+        const searchPatternRow = rowIndex - pos.startRow;
+        const searchPatternCol = colIndex - pos.startCol;
+        return searchPattern[searchPatternRow][searchPatternCol] !== null;
+      }
+      return false;
+    });
+  };
+
   const getCellColor = (cell: SymbolType) => {
     switch (cell) {
       case '庄':
@@ -38,7 +83,11 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ data, type, onPress }) => {
       onTouchEnd={onPress}
     >
       <View style={styles.outerContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+        <ScrollView 
+          ref={scrollViewRef}
+          horizontal 
+          showsHorizontalScrollIndicator={true}
+        >
           <View style={[
             styles.gridContainer,
             type === 'main' && styles.mainGridContainer
@@ -53,7 +102,10 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ data, type, onPress }) => {
                     ]}
                   >
                     {cell && (
-                      <View style={[getCellColor(cell)]}>
+                      <View style={[
+                        getCellColor(cell),
+                        isPositionHighlighted(rowIndex, colIndex) && styles.highlightedCell
+                      ]}>
                         <Text style={styles.cellText}>
                           {cell === '8-blue' || cell === '8-red' ? '8' :
                            cell === '9-blue' || cell === '9-red' ? '9' :
@@ -157,7 +209,19 @@ const styles = StyleSheet.create({
     margin: 2,
     justifyContent: 'center',
     alignItems: 'center',
-  }
+  },
+  highlightedCell: {
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    shadowColor: '#FFD700',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 5,
+  },
 });
 
 export default Scoreboard; 

@@ -81,14 +81,14 @@ export const saveRecord = async (
   }
 };
 
-// Helper function to check if pattern exists in board
-const patternExistsInBoard = (
+// Helper function to check if pattern exists in board at any position
+const findPatternPositions = (
   searchPattern: SymbolType[][],
   recordBoard: SymbolType[][]
-): boolean => {
+): { found: boolean; positions: { startRow: number; startCol: number }[] } => {
   // Skip empty search patterns
   if (!searchPattern.some(row => row.some(symbol => symbol !== null))) {
-    return false;
+    return { found: false, positions: [] };
   }
 
   // Get dimensions
@@ -96,45 +96,97 @@ const patternExistsInBoard = (
   const searchCols = searchPattern[0].length;
   const recordRows = recordBoard.length;
   const recordCols = recordBoard[0].length;
+  
+  // Store all matching positions
+  const matchingPositions: { startRow: number; startCol: number }[] = [];
 
-  // Try to find pattern at each possible position in the record board
-  for (let startRow = 0; startRow <= recordRows - searchRows; startRow++) {
-    for (let startCol = 0; startCol <= recordCols - searchCols; startCol++) {
+  // Get non-null positions in search pattern
+  const nonNullPositions: { row: number; col: number; value: SymbolType }[] = [];
+  let firstNonNullPos = { row: -1, col: -1 };
+  let hasFoundFirst = false;
+
+  searchPattern.forEach((row, rowIndex) => {
+    row.forEach((cell, colIndex) => {
+      if (cell !== null) {
+        if (!hasFoundFirst) {
+          firstNonNullPos = { row: rowIndex, col: colIndex };
+          hasFoundFirst = true;
+        }
+        nonNullPositions.push({ row: rowIndex, col: colIndex, value: cell });
+      }
+    });
+  });
+
+  if (nonNullPositions.length === 0) {
+    return { found: false, positions: [] };
+  }
+
+  // Try to find pattern at each position in the record board
+  for (let row = 0; row < recordRows; row++) {
+    for (let col = 0; col < recordCols; col++) {
       let matches = true;
 
-      // Check if pattern matches at this position
-      for (let row = 0; row < searchRows && matches; row++) {
-        for (let col = 0; col < searchCols && matches; col++) {
-          const searchSymbol = searchPattern[row][col];
-          // Only check non-null symbols in search pattern
-          if (searchSymbol !== null) {
-            const recordSymbol = recordBoard[startRow + row][startCol + col];
-            if (searchSymbol !== recordSymbol) {
-              matches = false;
-            }
-          }
+      // Check if all non-null positions in pattern match relative to current position
+      for (const pos of nonNullPositions) {
+        // Calculate relative position from the first non-null position
+        const relativeRow = row + (pos.row - firstNonNullPos.row);
+        const relativeCol = col + (pos.col - firstNonNullPos.col);
+
+        // Check if position is within bounds
+        if (relativeRow < 0 || relativeRow >= recordRows || 
+            relativeCol < 0 || relativeCol >= recordCols) {
+          matches = false;
+          break;
+        }
+
+        // Check if symbols match
+        const recordSymbol = recordBoard[relativeRow][relativeCol];
+        if (pos.value !== recordSymbol) {
+          matches = false;
+          break;
         }
       }
 
       if (matches) {
-        return true;
+        // Calculate the starting position relative to the first non-null position
+        const startRow = row - firstNonNullPos.row;
+        const startCol = col - firstNonNullPos.col;
+        
+        // Only add if the starting position is within bounds
+        if (startRow >= 0 && startCol >= 0) {
+          matchingPositions.push({ startRow, startCol });
+        }
       }
     }
   }
 
-  return false;
+  return {
+    found: matchingPositions.length > 0,
+    positions: matchingPositions
+  };
 };
+
+// Update the search result type to include matched positions
+interface SearchResultWithPositions extends SearchResult {
+  records: (ScoreboardRecord & {
+    matchedPositions: { startRow: number; startCol: number }[];
+  })[];
+}
 
 export const searchRecords = async (
   searchBoard: SymbolType[][]
-): Promise<SearchResult> => {
+): Promise<SearchResultWithPositions> => {
   try {
     const records = await getAllRecords();
     
-    // Find records that contain the search pattern
-    const matchingRecords = records.filter(record => 
-      patternExistsInBoard(searchBoard, record.searchBoard)
-    );
+    // Find records that contain the search pattern and their positions
+    const matchingRecords = records.map(record => {
+      const { found, positions } = findPatternPositions(searchBoard, record.searchBoard);
+      return {
+        ...record,
+        matchedPositions: positions
+      };
+    }).filter(record => record.matchedPositions.length > 0);
 
     // Sort by most recent first
     matchingRecords.sort((a, b) => 

@@ -1,7 +1,7 @@
-export type SymbolType = string | null;
+export type SymbolType = '庄' | '闲' | '和' | '8-blue' | '9-blue' | '8-red' | '9-red' | '龙' | '猫' | null;
 
 export interface SymbolConfig {
-  value: string;
+  value: SymbolType;
   color: string;
 }
 
@@ -21,6 +21,7 @@ export interface ScoreboardRecord {
   mainBoard: SymbolType[][];
   searchBoard: SymbolType[][];
   savedAt: string;
+  matchedPositions?: { startRow: number; startCol: number }[];
 }
 
 export interface SearchResult {

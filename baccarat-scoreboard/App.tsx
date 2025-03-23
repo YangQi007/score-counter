@@ -35,9 +35,10 @@ export default function App() {
   const [selectedRecordId, setSelectedRecordId] = useState<string | undefined>();
   const [symbolPositions, setSymbolPositions] = useState<{row: number, col: number}[]>([]);
   const [historyPositions, setHistoryPositions] = useState<{row: number, col: number}[]>([]);
+  const [matchedPositions, setMatchedPositions] = useState<{ startRow: number; startCol: number }[]>([]);
 
   const handleSymbolPress = (symbol: SymbolConfig) => {
-    if (symbol.value === '←') {
+    if (symbol.value === '←' as SymbolType) {
       handleBackPress();
       return;
     }
@@ -146,6 +147,9 @@ export default function App() {
           setCurrentRow(currentRow + 1);
         }
       } else if (activePanel === 'history') {
+        // Clear matched positions when editing history panel
+        setMatchedPositions([]);
+        
         // Update history board
         const newHistoryBoard = historyBoard.map(row => [...row]);
         let placed = false;
@@ -234,11 +238,10 @@ export default function App() {
   };
 
   const handleBackPress = () => {
-    const newMainBoard = mainBoard.map(row => [...row]);
-    const newSearchBoard = searchBoard.map(row => [...row]);
-    const newHistoryBoard = historyBoard.map(row => [...row]);
-    
     if (activePanel === 'main') {
+      const newMainBoard = mainBoard.map(row => [...row]);
+      const newSearchBoard = searchBoard.map(row => [...row]);
+      
       // Handle main board backspace (6 rows)
       if (currentRow === 0 && currentCol > 0) {
         setCurrentRow(5);
@@ -253,18 +256,16 @@ export default function App() {
         }
       }
 
-      // Handle search board deletion using tracked positions
+      // Handle search board deletion
       if (symbolPositions.length > 0) {
-        // Get the last position
         const lastPos = symbolPositions[symbolPositions.length - 1];
+        const symbolToDelete = newSearchBoard[lastPos.row][lastPos.col];
         
         // Delete the symbol
-        const symbolToDelete = newSearchBoard[lastPos.row][lastPos.col];
         newSearchBoard[lastPos.row][lastPos.col] = null;
-
-        // Update lastSymbolColor
+        
+        // Update lastSymbolColor by finding the previous non-'和' symbol
         if (symbolToDelete !== '和') {
-          // Find the previous non-'和' symbol from the remaining positions
           let foundPrevColor = false;
           for (let i = symbolPositions.length - 2; i >= 0; i--) {
             const prevPos = symbolPositions[i];
@@ -283,32 +284,33 @@ export default function App() {
           }
         }
 
-        // Update position for next deletion
+        // Update positions
         setSearchRow(lastPos.row);
         setSearchCol(lastPos.col);
-
-        // Remove the position from tracking array
         setSymbolPositions(prev => prev.slice(0, -1));
       }
 
-      // If all symbols are deleted, reset to initial state
+      // Reset if all symbols are deleted
       if (symbolPositions.length === 0) {
         setSearchRow(0);
         setSearchCol(0);
         setLastSymbolColor(null);
       }
+
+      setMainBoard(newMainBoard);
+      setSearchBoard(newSearchBoard);
     } else if (activePanel === 'history') {
+      // Clear matched positions when deleting from history panel
+      setMatchedPositions([]);
+      
+      const newHistoryBoard = historyBoard.map(row => [...row]);
+      
       if (historyPositions.length > 0) {
-        // Get the last position
         const lastPos = historyPositions[historyPositions.length - 1];
-        
-        // Delete the symbol
         const symbolToDelete = newHistoryBoard[lastPos.row][lastPos.col];
         newHistoryBoard[lastPos.row][lastPos.col] = null;
 
-        // Update lastHistoryColor
         if (symbolToDelete !== '和') {
-          // Find the previous non-'和' symbol from the remaining positions
           let foundPrevColor = false;
           for (let i = historyPositions.length - 2; i >= 0; i--) {
             const prevPos = historyPositions[i];
@@ -327,25 +329,19 @@ export default function App() {
           }
         }
 
-        // Update position for next deletion
         setHistoryRow(lastPos.row);
         setHistoryCol(lastPos.col);
-
-        // Remove the position from tracking array
         setHistoryPositions(prev => prev.slice(0, -1));
       }
 
-      // If all symbols are deleted, reset to initial state
       if (historyPositions.length === 0) {
         setHistoryRow(0);
         setHistoryCol(0);
         setLastHistoryColor(null);
       }
+
+      setHistoryBoard(newHistoryBoard);
     }
-    
-    setMainBoard(newMainBoard);
-    setSearchBoard(newSearchBoard);
-    setHistoryBoard(newHistoryBoard);
   };
 
   const handleSave = async () => {
@@ -359,7 +355,35 @@ export default function App() {
     }
 
     try {
-      await saveRecord(mainBoard, searchBoard);
+      // Get all existing records
+      const existingRecords = await getAllRecords();
+
+      // Check for duplicate by comparing search board patterns
+      const isDuplicate = existingRecords.some(record => {
+        // First check if boards have same dimensions
+        if (record.searchBoard.length !== searchBoard.length || 
+            record.searchBoard[0].length !== searchBoard[0].length) {
+          return false;
+        }
+
+        // Compare each cell
+        for (let row = 0; row < searchBoard.length; row++) {
+          for (let col = 0; col < searchBoard[0].length; col++) {
+            if (record.searchBoard[row][col] !== searchBoard[row][col]) {
+              return false;
+            }
+          }
+        }
+        return true;
+      });
+
+      if (isDuplicate) {
+        Alert.alert('提示', '相同的记录已存在，无需重复保存。');
+        return;
+      }
+
+      const savedRecord = await saveRecord(mainBoard, searchBoard);
+      setSelectedRecordId(savedRecord.id);
       Alert.alert('成功', '记录保存成功');
     } catch (error) {
       Alert.alert('错误', '保存记录失败');
@@ -428,23 +452,99 @@ export default function App() {
     }
   };
 
-  const handleSelectRecord = (record: ScoreboardRecord) => {
+  const handleSelectRecord = async (record: ScoreboardRecord) => {
+    // First, reset ALL states to initial values for all panels
+    const emptyMainBoard = Array(6).fill(null).map(() => Array(70).fill(null));
+    const emptySearchBoard = Array(5).fill(null).map(() => Array(70).fill(null));
+    
+    // Important: Clear symbolPositions first and wait for it to complete
+    await new Promise<void>(resolve => {
+        setSymbolPositions([]);
+        setMatchedPositions(record.matchedPositions || []);
+        resolve();
+    });
+
+    // Clear main and search panels and their states
+    await new Promise<void>(resolve => {
+        setMainBoard(emptyMainBoard);
+        setSearchBoard(emptySearchBoard);
+        
+        // Reset position trackers for main and search panels
+        setCurrentRow(0);
+        setCurrentCol(0);
+        setSearchRow(0);
+        setSearchCol(0);
+        
+        // Reset color tracker for search panel
+        setLastSymbolColor(null);
+        resolve();
+    });
+
+    // Now load the selected record
     setMainBoard(record.mainBoard);
     setSearchBoard(record.searchBoard);
     setShowSearchResults(false);
+    setShowHistory(false); // Close history modal as well
     setSelectedRecordId(record.id);
-    setActivePanel('main');
     
-    // Find last positions in main board (6 rows)
+    // Only change activePanel if we're selecting from history
+    if (showHistory) {
+        setActivePanel('main');
+    }
+
+    // Process main board positions
     const mainPositions = findLastPositions(record.mainBoard, 6);
     setCurrentRow(mainPositions.nextRow);
     setCurrentCol(mainPositions.nextCol);
+
+    // Build positions array for search board
+    const positions: {row: number; col: number; symbol: SymbolType}[] = [];
     
-    // Find last positions in search board (5 rows)
-    const searchPositions = findLastPositions(record.searchBoard, 5);
-    setSearchRow(searchPositions.nextRow);
-    setSearchCol(searchPositions.nextCol);
-    setLastSymbolColor(searchPositions.lastColor);
+    // First collect all positions with their symbols in the order they appear
+    for (let col = 0; col < record.searchBoard[0].length; col++) {
+        for (let row = 0; row < record.searchBoard.length; row++) {
+            const symbol = record.searchBoard[row][col];
+            if (symbol !== null) {
+                positions.push({row, col, symbol});
+            }
+        }
+    }
+
+    // Sort positions by column first, then by row
+    positions.sort((a, b) => {
+        if (a.col !== b.col) return a.col - b.col;
+        return a.row - b.row;
+    });
+
+    // Set the positions array directly
+    await new Promise<void>(resolve => {
+        const newPositions = positions.map(({row, col}) => ({row, col}));
+        setSymbolPositions(newPositions);
+        
+        // Update last color from the last non-'和' symbol
+        for (let i = positions.length - 1; i >= 0; i--) {
+            const symbol = positions[i].symbol;
+            if (symbol !== '和') {
+                const symbolConfig = SYMBOLS.find(s => s.value === symbol);
+                if (symbolConfig) {
+                    setLastSymbolColor(symbolConfig.color);
+                    break;
+                }
+            }
+        }
+
+        // Set search board position to the last position
+        if (positions.length > 0) {
+            const lastPos = positions[positions.length - 1];
+            setSearchRow(lastPos.row);
+            setSearchCol(lastPos.col);
+        } else {
+            setSearchRow(0);
+            setSearchCol(0);
+        }
+        
+        resolve();
+    });
   };
 
   const handleHistory = async () => {
@@ -462,22 +562,8 @@ export default function App() {
   };
 
   const handleSelectHistoryRecord = (record: ScoreboardRecord) => {
-    setMainBoard(record.mainBoard);
-    setSearchBoard(record.searchBoard);
-    setShowHistory(false);
-    setSelectedRecordId(record.id);
-    setActivePanel('main');
-    
-    // Find last positions in main board (6 rows)
-    const mainPositions = findLastPositions(record.mainBoard, 6);
-    setCurrentRow(mainPositions.nextRow);
-    setCurrentCol(mainPositions.nextCol);
-    
-    // Find last positions in search board (5 rows)
-    const searchPositions = findLastPositions(record.searchBoard, 5);
-    setSearchRow(searchPositions.nextRow);
-    setSearchCol(searchPositions.nextCol);
-    setLastSymbolColor(searchPositions.lastColor);
+    // Use the same logic as handleSelectRecord
+    handleSelectRecord(record);
   };
 
   const handleDeleteRecord = async (record: ScoreboardRecord) => {
@@ -505,6 +591,7 @@ export default function App() {
         
         // Reset color tracking
         setLastSymbolColor(null);
+        setMatchedPositions([]);
       }
       
       Alert.alert('成功', '记录已删除');
@@ -546,6 +633,7 @@ export default function App() {
             // Reset position tracking
             setSymbolPositions([]);
             setHistoryPositions([]);
+            setMatchedPositions([]);
             
             // Reset selected record
             setSelectedRecordId(undefined);
@@ -579,6 +667,8 @@ export default function App() {
                 type="search"
                 onPress={() => setActivePanel('main')}
                 isActive={activePanel === 'main'}
+                matchedPositions={matchedPositions}
+                searchPattern={historyBoard}
               />
             </View>
             <View style={[
@@ -618,13 +708,14 @@ export default function App() {
         onSelectRecord={handleSelectRecord}
         loading={isSearching}
         selectedRecordId={selectedRecordId}
+        searchPattern={historyBoard}
       />
 
       <SearchResultsModal
         visible={showHistory}
         onClose={() => setShowHistory(false)}
         results={historyRecords}
-        onSelectRecord={handleSelectHistoryRecord}
+        onSelectRecord={handleSelectRecord}
         onDeleteRecord={handleDeleteRecord}
         loading={isLoadingHistory}
         title="历史记录"
@@ -687,4 +778,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
   }
 });
+
 

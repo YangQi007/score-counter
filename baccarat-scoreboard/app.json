@@ -20,27 +20,24 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.qiyang2017.baccaratapp",
-      "config": {
-        "usesNonExemptEncryption": false
-      }
+      "bundleIdentifier": "com.qiyang2017.baccaratapp"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#FFFFFF"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
       "package": "com.qiyang2017.baccaratapp"
     },
     "web": {
-      "favicon": "./assets/icon.png"
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
         "projectId": "your-project-id"
       }
     },
-    "owner": "qiyang2017",
+    "owner": "yang007",
     "developmentClient": {
       "silentLaunch": true
     }
