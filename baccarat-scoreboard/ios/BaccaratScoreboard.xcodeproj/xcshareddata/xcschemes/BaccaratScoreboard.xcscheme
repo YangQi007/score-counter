@@ -16,7 +16,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
                BuildableName = "BaccaratScoreboard.app"
-               BlueprintName = "Baccarat Scoreboard"
+               BlueprintName = "BaccaratScoreboard"
                ReferencedContainer = "container:BaccaratScoreboard.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -56,10 +56,27 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
             BuildableName = "BaccaratScoreboard.app"
-            BlueprintName = "Baccarat Scoreboard"
+            BlueprintName = "BaccaratScoreboard"
             ReferencedContainer = "container:BaccaratScoreboard.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "RCT_METRO_PORT"
+            value = "8081"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "EXPO_DEVTOOLS_LISTEN_ADDRESS"
+            value = "0.0.0.0"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "RCT_DEBUG_HOST"
+            value = "192.168.4.23"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -73,7 +90,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
             BuildableName = "BaccaratScoreboard.app"
-            BlueprintName = "Baccarat Scoreboard"
+            BlueprintName = "BaccaratScoreboard"
             ReferencedContainer = "container:BaccaratScoreboard.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

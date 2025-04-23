@@ -24,6 +24,12 @@
 - (NSURL *)bundleURL
 {
 #if DEBUG
+  // Try to load from bundle first
+  NSString *bundlePath = [[NSBundle mainBundle] pathForResource:@"main" ofType:@"jsbundle"];
+  if (bundlePath) {
+    return [NSURL fileURLWithPath:bundlePath];
+  }
+  // Fall back to Metro if bundle doesn't exist
   return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];
 #else
   return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
