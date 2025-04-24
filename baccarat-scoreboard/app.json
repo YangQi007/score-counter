@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -37,9 +36,6 @@
         "projectId": "your-project-id"
       }
     },
-    "owner": "yang007",
-    "developmentClient": {
-      "silentLaunch": true
-    }
+    "owner": "yang007"
   }
 }

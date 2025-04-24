@@ -15,31 +15,28 @@ prepare_react_native_project!
 
 target 'BaccaratScoreboard' do
   use_expo_modules!
-
-  if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
-    config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
-  else
-    config_command = [
-      'node',
-      '--no-warnings',
-      '--eval',
-      'require(require.resolve(\'expo-modules-autolinking\', { paths: [require.resolve(\'expo/package.json\')] }))(process.argv.slice(1))',
-      'react-native-config',
-      '--json',
-      '--platform',
-      'ios'
-    ]
-  end
-
+  
+  config_command = [
+    'node',
+    '--no-warnings',
+    '--eval',
+    'require(require.resolve(\'expo-modules-autolinking\', { paths: [require.resolve(\'expo/package.json\')] }))(process.argv.slice(1))',
+    'react-native-config',
+    '--json',
+    '--platform',
+    'ios'
+  ]
+  
   config = use_native_modules!(config_command)
 
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
-  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
+
+  # Flags change depending on the env values.
+  flags = get_default_flags()
 
   use_react_native!(
     :path => config[:reactNativePath],
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
-    # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/..",
     :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
   )
@@ -48,62 +45,78 @@ target 'BaccaratScoreboard' do
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false,
-      :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
+      :mac_catalyst_enabled => false
     )
 
-    # This is necessary for Xcode 14, because it signs resource bundles by default
-    # when building for devices.
-    installer.target_installation_results.pod_target_installation_results
-      .each do |pod_name, target_installation_result|
-      target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
-        resource_bundle_target.build_configurations.each do |config|
-          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
-        end
-      end
-    end
-
-    # Comprehensive C++ and build settings
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        # C++ settings
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'gnu++20'
+        # Basic C++ settings - downgrade to C++17
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
         config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
         
-        # Additional build settings for compatibility
+        # Deployment target
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        
+        # Common preprocessor definitions
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_DISABLE_AVAILABILITY=1'
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG'
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_MOBILE=1'
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_USE_LIBCPP=1'
         
-        # Specific C++ flags
-        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -std=gnu++20 -DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1'
-        
-        # Deployment target settings
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
-
-        # Special handling for ReactCommon
-        if target.name.include?('ReactCommon')
-          config.build_settings['OTHER_CFLAGS'] ||= '$(inherited) -DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1'
-          config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) ${PODS_ROOT}/Headers/Public/React-hermes ${PODS_ROOT}/Headers/Public/hermes-engine'
-        end
-      end
-    end
-
-    # Apply the same settings to the main project
-    installer.generated_projects.each do |project|
-      project.targets.each do |target|
-        target.build_configurations.each do |config|
-          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'gnu++20'
-          config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_DISABLE_AVAILABILITY=1'
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG'
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_MOBILE=1'
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_USE_LIBCPP=1'
-          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -std=gnu++20 -DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1'
-          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        # Special handling for all React and Folly related targets
+        if target.name.include?('React') || target.name.include?('Folly') || target.name.include?('hermes')
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX17_REMOVED_FEATURES=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_DISABLE_DEPRECATION_WARNINGS=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_DISABLE_AVAILABILITY_UNSAFE_CHECKING=1'
+          
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = [
+            '$(inherited)',
+            '-std=c++17',
+            '-stdlib=libc++',
+            '-DFOLLY_NO_CONFIG',
+            '-DFOLLY_MOBILE=1',
+            '-DFOLLY_USE_LIBCPP=1',
+            '-D_LIBCPP_ENABLE_CXX17_REMOVED_FEATURES=1',
+            '-D_LIBCPP_DISABLE_DEPRECATION_WARNINGS',
+            '-D_LIBCPP_DISABLE_AVAILABILITY_UNSAFE_CHECKING',
+            '-Wno-comma',
+            '-Wno-shorten-64-to-32',
+            '-Wno-documentation',
+            '-Wno-nullability-completeness',
+            '-Wno-deprecated-declarations',
+            '-Wno-missing-field-initializers',
+            '-DGLOG_NO_ABBREVIATED_SEVERITIES',
+            '-DFB_SONARKIT_ENABLED=1'
+          ].join(' ')
+          
+          # Add explicit template instantiation for char_traits
+          header_content = <<-EOT
+          #ifndef CHAR_TRAITS_INSTANTIATION_H
+          #define CHAR_TRAITS_INSTANTIATION_H
+          #include <string>
+          namespace std {
+            template struct char_traits<unsigned char>;
+          }
+          #endif
+          EOT
+          
+          # Create a new header file in the Pods directory
+          char_traits_header_path = File.join(installer.sandbox.root, 'char_traits_instantiation.h')
+          File.write(char_traits_header_path, header_content)
+          
+          # Add the directory containing the new header to header search paths
+          config.build_settings['HEADER_SEARCH_PATHS'] ||= [
+            '$(inherited)',
+            '"$(PODS_ROOT)"',
+            '"$(PODS_ROOT)/boost"',
+            '"$(PODS_ROOT)/RCT-Folly"',
+            '"$(PODS_ROOT)/DoubleConversion"',
+            '"$(PODS_ROOT)/Headers/Private/React-Core"',
+            '"$(PODS_ROOT)/Headers/Public/React-hermes"',
+            '"$(PODS_ROOT)/Headers/Public/hermes-engine"',
+            '"$(PODS_ROOT)/fmt/include"'
+          ].join(' ')
         end
       end
     end
