@@ -80,7 +80,7 @@ A React Native application for tracking and managing baccarat game scores with m
    - Select your target under TARGETS
    - Under "Signing & Capabilities":
      - Select your Team (Apple ID)
-     - Bundle Identifier should be "com.qiyang2017.baccaratapp"
+     - Bundle Identifier should be "com.xxxxxx.baccaratapp"
 
 7. Connect your iPhone:
    - Connect your iPhone to your Mac with a USB cable
