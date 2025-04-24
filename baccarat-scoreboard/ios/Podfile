@@ -67,15 +67,27 @@ target 'BaccaratScoreboard' do
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         # C++ settings
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'gnu++20'
         config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
         
         # Additional build settings for compatibility
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_DISABLE_AVAILABILITY=1'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_MOBILE=1'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_USE_LIBCPP=1'
+        
+        # Specific C++ flags
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -std=gnu++20 -DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1'
         
         # Deployment target settings
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+
+        # Special handling for ReactCommon
+        if target.name.include?('ReactCommon')
+          config.build_settings['OTHER_CFLAGS'] ||= '$(inherited) -DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1'
+          config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) ${PODS_ROOT}/Headers/Public/React-hermes ${PODS_ROOT}/Headers/Public/hermes-engine'
+        end
       end
     end
 
@@ -83,10 +95,14 @@ target 'BaccaratScoreboard' do
     installer.generated_projects.each do |project|
       project.targets.each do |target|
         target.build_configurations.each do |config|
-          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'gnu++20'
           config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_DISABLE_AVAILABILITY=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_MOBILE=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_USE_LIBCPP=1'
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -std=gnu++20 -DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1'
           config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         end
       end
